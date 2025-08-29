@@ -1,0 +1,5 @@
+16:27:45.839 Read Holding Regs from 144 for 0.
+16:27:46.156 Read Holding Regs from 144 for 0.
+16:27:46.428 Read Holding Regs from 144 for 0.
+16:27:46.702 Read Holding Regs from 144 for 0.
+16:40:18.897 Read Holding Regs from 138 for 0.

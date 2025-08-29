@@ -1,0 +1,111 @@
+﻿@using System.Net
+<div>
+    <button @onclick="() => Toggle(0)"
+            class="btn @(toggleStates[0].IsOn ? "btn-success" : "btn-secondary")"
+            aria-pressed="@toggleStates[0].IsOn"
+            aria-label="Toggle @(toggleStates[0].IsOn ? "På" : "Av")"
+            type="button"
+            style="display: flex; align-items: center; gap: 0.5rem;">
+        <span>Coil Address #@toggleStates[0].CoilAddress</span>
+        <span style="font-size: 1.5rem;">
+            @(toggleStates[0].IsOn ? "🟢" : "🔴")
+        </span>
+        <span>
+            @(toggleStates[0].IsOn ? "På" : "Av")
+        </span>
+    </button>
+    
+    <button @onclick="() => Toggle(1)"
+            class="btn @(toggleStates[1].IsOn ? "btn-success" : "btn-secondary")"
+            aria-pressed="@toggleStates[1].IsOn"
+            aria-label="Toggle @(toggleStates[1].IsOn ? "På" : "Av")"
+            type="button"
+            style="display: flex; align-items: center; gap: 0.5rem;">
+        <span>Coil Address #@toggleStates[1].CoilAddress</span>
+        <span style="font-size: 1.5rem;">
+            @(toggleStates[1].IsOn ? "🟢" : "🔴")
+        </span>
+        <span>
+            @(toggleStates[1].IsOn ? "På" : "Av")
+        </span>
+    </button>
+    <button @onclick="() => Toggle(2)"
+            class="btn @(toggleStates[2].IsOn ? "btn-success" : "btn-secondary")"
+            aria-pressed="@toggleStates[2].IsOn"
+            aria-label="Toggle @(toggleStates[2].IsOn ? "På" : "Av")"
+            type="button"
+            style="display: flex; align-items: center; gap: 0.5rem;">
+        <span>Coil Address #@toggleStates[2].CoilAddress</span>
+        <span style="font-size: 1.5rem;">
+            @(toggleStates[2].IsOn ? "🟢" : "🔴")
+        </span>
+        <span>
+            @(toggleStates[2].IsOn ? "På" : "Av")
+        </span>
+    </button>
+</div>
+
+@code {
+    private HttpClient Http => HttpClient.CreateClient("ServerAPI");
+
+    private ToggleState[] toggleStates = new ToggleState[]
+    {
+        new ToggleState { CoilAddress = 1, IsOn = false },
+        new ToggleState { CoilAddress = 4, IsOn = false },
+        new ToggleState { CoilAddress = 5, IsOn = false }
+    };
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadToggleStateAsync();
+    }
+
+    private async Task LoadToggleStateAsync()
+    {
+        // Read the current state from the Modbus server
+        toggleStates[0].IsOn = ModbusTcpMasterReadCoils(1);
+        toggleStates[1].IsOn = ModbusTcpMasterReadCoils(4);
+        toggleStates[2].IsOn = ModbusTcpMasterReadCoils(5);
+
+        for (int i = 0; i < toggleStates.Length; i++)
+        {
+            // Attempt to get the existing state from the server
+            try
+            {
+                var result = await Http.GetFromJsonAsync<ToggleState>($"api/togglestates/{toggleStates[i].CoilAddress}");
+                if (result != null)
+                    toggleStates[i].Id = result.Id;
+            }
+            catch (HttpRequestException ex)
+            {
+                if (ex.Message.Contains("404"))
+                {
+                    // If not found, create a new entry
+                    try
+                    {
+                        var result = await Http.PostAsJsonAsync("api/togglestates", toggleStates[i]);
+
+                    }
+                    catch (Exception e)
+                    {
+                        // Handle other exceptions
+                        if (e.Message.Contains(HttpStatusCode.NoContent.ToString()))
+                        {
+                            // Handle no content response
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task Toggle(int id)
+    {
+        toggleStates[id].IsOn = !toggleStates[id].IsOn;
+        await Http.PutAsJsonAsync($"api/togglestates/{id}", toggleStates[id].IsOn);
+        ModbusTcpMasterWriteSingleCoil(toggleStates[id].CoilAddress, toggleStates[id].IsOn); // Write the new state to the Modbus server
+    }
+}
+
+@inject IHttpClientFactory HttpClient
